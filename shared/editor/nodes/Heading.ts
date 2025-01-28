@@ -1,5 +1,5 @@
 import copy from "copy-to-clipboard";
-import { textblockTypeInputRule } from "prosemirror-inputrules";
+import { InputRule } from "prosemirror-inputrules";
 import {
   Node as ProsemirrorNode,
   NodeSpec,
@@ -7,6 +7,7 @@ import {
   Schema,
 } from "prosemirror-model";
 import { Command, Plugin, Selection } from "prosemirror-state";
+import { findWrapping } from "prosemirror-transform";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import { toast } from "sonner";
 import { Primitive } from "utility-types";
@@ -277,11 +278,35 @@ export default class Heading extends Node {
     return [new FoldingHeadersPlugin(this.editor.props.id), plugin];
   }
 
-  inputRules({ type }: { type: NodeType }) {
-    return this.options.levels.map((level: number) =>
-      textblockTypeInputRule(new RegExp(`^(#{1,${level}})\\s$`), type, () => ({
-        level,
-      }))
+  inputRules({ type, schema }: { type: NodeType; schema: Schema }) {
+    return this.options.levels.map(
+      (level: number) =>
+        new InputRule(
+          new RegExp(`^(#{1,${level}})\\s$`),
+          (state, _match, start, end) => {
+            const $start = state.doc.resolve(start);
+            if (
+              !$start
+                .node(-1)
+                .canReplaceWith($start.index(-1), $start.indexAfter(-1), type)
+            ) {
+              return null;
+            }
+
+            const tr = state.tr
+              .delete(start, end)
+              .setBlockType(start, start, type, { level });
+
+            const range = tr.doc.resolve(start).blockRange();
+            const wrappers =
+              range && findWrapping(range, schema.nodes["toggle_block"]);
+            if (!wrappers) {
+              return null;
+            }
+
+            return tr.wrap(range!, wrappers);
+          }
+        )
     );
   }
 }
