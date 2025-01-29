@@ -1,4 +1,5 @@
-import { NodeSpec } from "prosemirror-model";
+import { NodeSpec, NodeType } from "prosemirror-model";
+import toggleWrap from "../commands/toggleWrap";
 import Node from "./Node";
 
 export default class ToggleBlock extends Node {
@@ -12,5 +13,9 @@ export default class ToggleBlock extends Node {
       group: "block",
       toDOM: () => ["div", { class: "toggle-block" }, 0],
     };
+  }
+
+  commands({ type }: { type: NodeType }) {
+    return () => toggleWrap(type);
   }
 }
