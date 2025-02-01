@@ -54,6 +54,10 @@ class Team extends Model {
 
   @Field
   @observable
+  previousSubdomains: string[] | null | undefined;
+  
+  @Field
+  @observable
   defaultUserRole: UserRole;
 
   @Field
@@ -114,6 +118,19 @@ class Team extends Model {
       ...this.preferences,
       [key]: value,
     };
+  }
+
+  set subdomain(newSubdomain: string | null | undefined) {
+    if (this.subdomain && this.subdomain !== newSubdomain) {
+      this.previousSubdomains = this.previousSubdomains || [];
+      // Ensure the array length is capped at 5
+      if (this.previousSubdomains.length >= 5) {
+        this.previousSubdomains.shift();
+      }
+      this.previousSubdomains.push(this.subdomain);
+    }
+
+    this.subdomain = newSubdomain;
   }
 }
 
