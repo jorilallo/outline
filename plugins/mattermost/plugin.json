@@ -1,0 +1,6 @@
+{
+  "id": "mattermost",
+  "name": "Mattermost",
+  "priority": 15,
+  "description": "Adds support for the /outline slash command, and incoming webhooks for document change event."
+}

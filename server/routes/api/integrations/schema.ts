@@ -4,6 +4,7 @@ import {
   IntegrationType,
   UserCreatableIntegrationService,
 } from "@shared/types";
+import { MattermostIntegrationSettingsSchema } from "@shared/zod";
 import { Integration } from "@server/models";
 import { BaseSchema } from "../schema";
 
@@ -41,9 +42,16 @@ export const IntegrationsCreateSchema = BaseSchema.extend({
     /** Integration service */
     service: z.nativeEnum(UserCreatableIntegrationService),
 
+    /** Integration access token (or) api key */
+    accessToken: z.string().optional(),
+
+    /** Integration refresh token */
+    refreshToken: z.string().optional(),
+
     /** Integration config/settings */
-    settings: z
-      .object({ url: z.string().url() })
+    settings: MattermostIntegrationSettingsSchema.or(
+      z.object({ url: z.string().url() })
+    )
       .or(
         z.object({
           url: z.string().url(),

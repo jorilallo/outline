@@ -4,7 +4,7 @@ import { IntegrationType, UserRole } from "@shared/types";
 import auth from "@server/middlewares/authentication";
 import { transaction } from "@server/middlewares/transaction";
 import validate from "@server/middlewares/validate";
-import { Event } from "@server/models";
+import { Event, IntegrationAuthentication } from "@server/models";
 import Integration from "@server/models/Integration";
 import { authorize } from "@server/policies";
 import { presentIntegration, presentPolicies } from "@server/presenters";
@@ -70,19 +70,46 @@ router.post(
   "integrations.create",
   auth({ role: UserRole.Admin }),
   validate(T.IntegrationsCreateSchema),
+  transaction(),
   async (ctx: APIContext<T.IntegrationsCreateReq>) => {
-    const { type, service, settings } = ctx.input.body;
-    const { user } = ctx.state.auth;
+    const { type, service, settings, accessToken, refreshToken } =
+      ctx.input.body;
+
+    const {
+      auth: { user },
+      transaction,
+    } = ctx.state;
 
     authorize(user, "createIntegration", user.team);
 
-    const integration = await Integration.create({
-      userId: user.id,
-      teamId: user.teamId,
-      service,
-      settings,
-      type,
-    });
+    let authentication;
+
+    // Create authentication data only if accessToken is present.
+    // Not much use when only refreshToken is present.
+    if (accessToken) {
+      authentication = await IntegrationAuthentication.create(
+        {
+          service,
+          token: accessToken,
+          refreshToken,
+          userId: user.id,
+          teamId: user.teamId,
+        },
+        { transaction }
+      );
+    }
+
+    const integration = await Integration.create(
+      {
+        type,
+        service,
+        settings,
+        authenticationId: authentication?.id,
+        userId: user.id,
+        teamId: user.teamId,
+      },
+      { transaction }
+    );
 
     ctx.body = {
       data: presentIntegration(integration),

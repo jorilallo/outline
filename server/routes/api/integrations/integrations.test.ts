@@ -150,6 +150,62 @@ describe("#integrations.create", () => {
     expect(body.data.settings).not.toBeFalsy();
     expect(body.data.settings.url).toEqual("https://grist.example.com");
   });
+
+  it("should store authentication data when accessToken is present", async () => {
+    const admin = await buildAdmin();
+
+    const res = await server.post("/api/integrations.create", {
+      body: {
+        token: admin.getJwtToken(),
+        type: IntegrationType.LinkedAccount,
+        service: IntegrationService.Mattermost,
+        accessToken: "access_token",
+        settings: {
+          url: "https://mattermost.com",
+          team: { id: "test_team_id", name: "test_team_name" },
+          user: {
+            id: "test_user_id",
+            name: "test_user_name",
+            email: "test_user_email",
+          },
+        },
+      },
+    });
+    const body = await res.json();
+    expect(res.status).toEqual(200);
+    expect(body.data.type).toEqual(IntegrationType.LinkedAccount);
+    expect(body.data.service).toEqual(IntegrationService.Mattermost);
+    expect(body.data.settings).not.toBeFalsy();
+    expect(body.data.authenticationId).toBeTruthy();
+  });
+
+  it("should not store authentication data when accessToken is not present", async () => {
+    const admin = await buildAdmin();
+
+    const res = await server.post("/api/integrations.create", {
+      body: {
+        token: admin.getJwtToken(),
+        type: IntegrationType.LinkedAccount,
+        service: IntegrationService.Mattermost,
+        refreshToken: "refresh_token",
+        settings: {
+          url: "https://mattermost.com",
+          team: { id: "test_team_id", name: "test_team_name" },
+          user: {
+            id: "test_user_id",
+            name: "test_user_name",
+            email: "test_user_email",
+          },
+        },
+      },
+    });
+    const body = await res.json();
+    expect(res.status).toEqual(200);
+    expect(body.data.type).toEqual(IntegrationType.LinkedAccount);
+    expect(body.data.service).toEqual(IntegrationService.Mattermost);
+    expect(body.data.settings).not.toBeFalsy();
+    expect(body.data.authenticationId).toBeNull();
+  });
 });
 
 describe("#integrations.delete", () => {

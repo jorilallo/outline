@@ -1,3 +1,5 @@
+import { MattermostIntegrationSettings } from "./zod";
+
 export enum UserRole {
   Admin = "admin",
   Member = "member",
@@ -95,6 +97,7 @@ export enum IntegrationService {
   Matomo = "matomo",
   Umami = "umami",
   GitHub = "github",
+  Mattermost = "mattermost",
 }
 
 export type UserCreatableIntegrationService = Extract<
@@ -103,6 +106,7 @@ export type UserCreatableIntegrationService = Extract<
   | IntegrationService.Grist
   | IntegrationService.GoogleAnalytics
   | IntegrationService.Matomo
+  | IntegrationService.Mattermost
   | IntegrationService.Umami
 >;
 
@@ -111,6 +115,7 @@ export const UserCreatableIntegrationService = {
   Grist: IntegrationService.Grist,
   GoogleAnalytics: IntegrationService.GoogleAnalytics,
   Matomo: IntegrationService.Matomo,
+  Mattermost: IntegrationService.Mattermost,
   Umami: IntegrationService.Umami,
 } as const;
 
@@ -156,6 +161,7 @@ export type IntegrationSettings<T> = T extends IntegrationType.Embed
       | { serviceTeamId: string }
       | { measurementId: string }
       | { slack: { serviceTeamId: string; serviceUserId: string } }
+      | MattermostIntegrationSettings
       | undefined;
 
 export enum UserPreference {
