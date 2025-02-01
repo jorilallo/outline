@@ -2,7 +2,7 @@ import teamUpdater from "@server/commands/teamUpdater";
 import { Team, User } from "@server/models";
 import { sequelize } from "@server/storage/database";
 import { Event as TEvent, CollectionEvent } from "@server/types";
-import DetachDraftsFromCollectionTask from "../tasks/DetachDraftsFromCollectionTask";
+import DetachDocumentsFromCollectionTask from "../tasks/DetachDocumentsFromCollectionTask";
 import BaseProcessor from "./BaseProcessor";
 
 export default class CollectionsProcessor extends BaseProcessor {
@@ -12,7 +12,7 @@ export default class CollectionsProcessor extends BaseProcessor {
   ];
 
   async perform(event: CollectionEvent) {
-    await DetachDraftsFromCollectionTask.schedule({
+    await DetachDocumentsFromCollectionTask.schedule({
       collectionId: event.collectionId,
       actorId: event.actorId,
       ip: event.ip,

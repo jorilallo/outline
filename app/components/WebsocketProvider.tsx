@@ -1,5 +1,6 @@
 import invariant from "invariant";
 import find from "lodash/find";
+import uniqBy from "lodash/uniqBy";
 import { action, observable } from "mobx";
 import { observer } from "mobx-react";
 import * as React from "react";
@@ -423,17 +424,35 @@ class WebsocketProvider extends React.Component<Props> {
       "collections.delete",
       action((event: WebsocketEntityDeletedEvent) => {
         const collectionId = event.modelId;
+        const collection = collections.get(collectionId);
         const deletedAt = new Date().toISOString();
-        const deletedDocuments = documents.inCollection(collectionId);
-        deletedDocuments.forEach((doc) => {
-          if (!doc.publishedAt) {
-            // draft is to be detached from collection, not deleted
+        const user = currentUserId ? users.get(currentUserId) : undefined;
+
+        // All non-deleted documents including drafts and archived.
+        const nonDeletedDocuments = uniqBy(
+          [
+            ...documents.inCollection(collectionId),
+            ...documents.archivedInCollection(collectionId),
+          ],
+          "id"
+        );
+        nonDeletedDocuments.forEach((doc) => {
+          // Detach drafts when a collection is deleted.
+          if (doc.isDraft) {
             doc.collectionId = null;
+          } else if (doc.isArchived && !collection?.isArchived) {
+            // Detach archived documents when an unarchived collection is deleted when the user is an admin (or) doc owner. Otherwise, remove it from the store.
+            if (!!user?.isAdmin || doc.createdBy?.id === currentUserId) {
+              doc.collectionId = null;
+            } else {
+              documents.remove(doc.id);
+            }
           } else {
             doc.deletedAt = deletedAt;
           }
           policies.remove(doc.id);
         });
+
         memberships.removeAll({ collectionId });
         collections.remove(collectionId);
       })
@@ -449,7 +468,7 @@ class WebsocketProvider extends React.Component<Props> {
 
         documents.unarchivedInCollection(collectionId).forEach(
           action((doc) => {
-            if (!doc.publishedAt) {
+            if (doc.isDraft) {
               // draft is to be detached from collection, not archived
               doc.collectionId = null;
             } else {

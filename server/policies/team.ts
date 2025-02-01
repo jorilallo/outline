@@ -50,15 +50,12 @@ allow(User, "createTemplate", Team, (actor, team) =>
   )
 );
 
+allow(User, "readDocument", Team, (actor, team) => isTeamAdmin(actor, team));
+
 allow(User, "readTemplate", Team, (actor, team) =>
   and(!actor.isViewer, isTeamModel(actor, team))
 );
 
-allow(User, "updateTemplate", Team, (actor, team) =>
-  and(
-    //
-    actor.isAdmin,
-    isTeamModel(actor, team),
-    isTeamMutable(actor)
-  )
+allow(User, ["updateDocument", "updateTemplate"], Team, (actor, team) =>
+  and(isTeamAdmin(actor, team), isTeamMutable(actor))
 );

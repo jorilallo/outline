@@ -2248,6 +2248,75 @@ describe("#documents.archived", () => {
     expect(body.data.length).toEqual(1);
   });
 
+  it("should return all detached archived documents for admin when containing collection is deleted", async () => {
+    const team = await buildTeam();
+    const admin = await buildAdmin({ teamId: team.id });
+    const user = await buildUser({ teamId: team.id });
+    const adminCollection = await buildCollection({ teamId: admin.teamId });
+    const userCollection = await buildCollection({ teamId: user.teamId });
+    const adminDocument = await buildDocument({
+      userId: admin.id,
+      teamId: admin.teamId,
+      collectionId: adminCollection.id,
+    });
+    const userDocument = await buildDocument({
+      userId: user.id,
+      teamId: user.teamId,
+      collectionId: userCollection.id,
+    });
+
+    await Promise.all([
+      adminCollection.destroy({ hooks: false }),
+      userCollection.destroy({ hooks: false }),
+      adminDocument.update({ archivedAt: new Date(), collectionId: null }),
+      userDocument.update({ archivedAt: new Date(), collectionId: null }),
+    ]);
+
+    const res = await server.post("/api/documents.archived", {
+      body: {
+        token: admin.getJwtToken(),
+      },
+    });
+    const body = await res.json();
+    expect(res.status).toEqual(200);
+    expect(body.data).toHaveLength(2);
+  });
+
+  it("should return only the detached archived documents belonging to a non-admin user when containing collection is deleted", async () => {
+    const team = await buildTeam();
+    const admin = await buildAdmin({ teamId: team.id });
+    const user = await buildUser({ teamId: team.id });
+    const adminCollection = await buildCollection({ teamId: admin.teamId });
+    const userCollection = await buildCollection({ teamId: user.teamId });
+    const adminDocument = await buildDocument({
+      userId: admin.id,
+      teamId: admin.teamId,
+      collectionId: adminCollection.id,
+    });
+    const userDocument = await buildDocument({
+      userId: user.id,
+      teamId: user.teamId,
+      collectionId: userCollection.id,
+    });
+
+    await Promise.all([
+      adminCollection.destroy({ hooks: false }),
+      userCollection.destroy({ hooks: false }),
+      adminDocument.update({ archivedAt: new Date(), collectionId: null }),
+      userDocument.update({ archivedAt: new Date(), collectionId: null }),
+    ]);
+
+    const res = await server.post("/api/documents.archived", {
+      body: {
+        token: user.getJwtToken(),
+      },
+    });
+    const body = await res.json();
+    expect(res.status).toEqual(200);
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].id).toEqual(userDocument.id);
+  });
+
   it("should not return deleted documents", async () => {
     const user = await buildUser();
     const document = await buildDocument({

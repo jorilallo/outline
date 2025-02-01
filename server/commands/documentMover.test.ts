@@ -242,4 +242,41 @@ describe("documentMover", () => {
     expect(response.documents[0].updatedBy.id).toEqual(user.id);
     expect(response.documents[0].publishedAt).toBeNull();
   });
+
+  it("should detach archived document when collection is deleted", async () => {
+    const team = await buildTeam();
+    const user = await buildUser({ teamId: team.id });
+    const collection = await buildCollection({
+      userId: user.id,
+      teamId: team.id,
+      deletedAt: new Date(),
+    });
+    const document = await buildDocument({
+      userId: user.id,
+      collectionId: collection.id,
+      teamId: team.id,
+      archivedAt: new Date(),
+    });
+
+    const response = await sequelize.transaction(async (transaction) =>
+      documentMover({
+        user,
+        document,
+        collectionId: null,
+        index: 0,
+        ip,
+        transaction,
+      })
+    );
+
+    expect(response.collections[0].id).toBe(collection.id);
+    expect(response.collections.length).toEqual(1);
+    expect(response.documents.length).toEqual(1);
+
+    expect(response.documents[0].collection).toBeNull();
+    expect(response.documents[0].updatedBy.id).toEqual(user.id);
+    expect(response.documents[0].publishedAt).toBeTruthy();
+    expect(response.documents[0].archivedAt).toBeTruthy();
+    expect(response.documents[0].deletedAt).toBeNull();
+  });
 });

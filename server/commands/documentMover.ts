@@ -164,7 +164,8 @@ async function documentMover({
             },
           }
         );
-      } else {
+      } else if (!document.isArchived) {
+        // skip archived documents since they can be detached when the collection is deleted
         // document will be moved to drafts
         document.publishedAt = null;
 

@@ -1,4 +1,4 @@
-import { Op } from "sequelize";
+import { Op, WhereOptions } from "sequelize";
 import documentMover from "@server/commands/documentMover";
 import { Collection, Document, User } from "@server/models";
 import { sequelize } from "@server/storage/database";
@@ -10,7 +10,7 @@ type Props = {
   ip: string;
 };
 
-export default class DetachDraftsFromCollectionTask extends BaseTask<Props> {
+export default class DetachDocumentsFromCollectionTask extends BaseTask<Props> {
   async perform(props: Props) {
     const [collection, actor] = await Promise.all([
       Collection.findByPk(props.collectionId, {
@@ -27,13 +27,24 @@ export default class DetachDraftsFromCollectionTask extends BaseTask<Props> {
       return;
     }
 
+    // Detach drafts and archived documents when an unarchived collection is deleted; otherwise detach drafts only.
+    const whereOpts: WhereOptions<Document> =
+      collection.isDeleted && !collection.isArchived
+        ? {
+            [Op.or]: [
+              { publishedAt: { [Op.is]: null } },
+              { archivedAt: { [Op.ne]: null } },
+            ],
+          }
+        : {
+            publishedAt: { [Op.is]: null },
+          };
+
     const documents = await Document.scope("withDrafts").findAll({
       where: {
         collectionId: props.collectionId,
         template: false,
-        publishedAt: {
-          [Op.is]: null,
-        },
+        ...whereOpts,
       },
       paranoid: false,
     });

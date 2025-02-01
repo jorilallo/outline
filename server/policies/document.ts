@@ -29,7 +29,16 @@ allow(User, "read", Document, (actor, document) =>
         !!document?.isWorkspaceTemplate,
         can(actor, "readTemplate", actor.team)
       ),
-      can(actor, "readDocument", document?.collection)
+      can(actor, "readDocument", document?.collection),
+      // Archived documents can be detached when the containing collection is deleted
+      and(
+        !!document?.isArchived,
+        !document?.collectionId,
+        or(
+          actor.id === document?.createdById,
+          can(actor, "readDocument", actor.team)
+        )
+      )
     )
   )
 );
@@ -243,7 +252,7 @@ allow(User, "unarchive", Document, (actor, document) =>
     !document?.template,
     !document?.isDraft,
     !document?.isDeleted,
-    !!document?.archivedAt,
+    !!document?.isArchived,
     can(actor, "read", document),
     or(
       includesMembership(document, [
@@ -251,7 +260,15 @@ allow(User, "unarchive", Document, (actor, document) =>
         DocumentPermission.Admin,
       ]),
       can(actor, "updateDocument", document?.collection),
-      and(!!document?.isDraft && actor.id === document?.createdById)
+      and(!!document?.isDraft && actor.id === document?.createdById),
+      // Archived documents can be detached when the containing collection is deleted
+      and(
+        !document?.collectionId,
+        or(
+          actor.id === document?.createdById,
+          can(actor, "updateDocument", actor.team)
+        )
+      )
     )
   )
 );

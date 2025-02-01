@@ -6,7 +6,7 @@ class ArchivableModel<
   TModelAttributes extends {} = any,
   TCreationAttributes extends {} = TModelAttributes
 > extends ParanoidModel<TModelAttributes, TCreationAttributes> {
-  /** Whether the document is archived, and if so when. */
+  /** Whether the model is archived, and if so when. */
   @AllowNull
   @IsDate
   @Column
