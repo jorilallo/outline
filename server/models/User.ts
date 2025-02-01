@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { addHours, addMinutes, subMinutes } from "date-fns";
 import JWT from "jsonwebtoken";
 import { Context } from "koa";
+import orderBy from "lodash/orderBy";
 import {
   Transaction,
   QueryTypes,
@@ -10,6 +11,7 @@ import {
   FindOptions,
   InferAttributes,
   InferCreationAttributes,
+  WhereOptions,
 } from "sequelize";
 import { type InstanceUpdateOptions } from "sequelize";
 import {
@@ -55,6 +57,7 @@ import Attachment from "./Attachment";
 import AuthenticationProvider from "./AuthenticationProvider";
 import Collection from "./Collection";
 import Group from "./Group";
+import GroupMembership from "./GroupMembership";
 import Team from "./Team";
 import UserAuthentication from "./UserAuthentication";
 import UserMembership from "./UserMembership";
@@ -64,6 +67,13 @@ import Fix from "./decorators/Fix";
 import IsUrlOrRelativePath from "./validators/IsUrlOrRelativePath";
 import Length from "./validators/Length";
 import NotContainsUrl from "./validators/NotContainsUrl";
+
+// Higher value takes precedence
+const DocumentPermissionPriority: Record<DocumentPermission, number> = {
+  [DocumentPermission.Admin]: 2,
+  [DocumentPermission.ReadWrite]: 1,
+  [DocumentPermission.Read]: 0,
+};
 
 /**
  * Flags that are available for setting on the user.
@@ -615,6 +625,92 @@ class User extends ParanoidModel<
         },
       ],
     });
+
+  /**
+   * Determines whether the user has a higher access level to a document.
+   *
+   *
+   * @param {Object} params Input parameters.
+   * @param {string} params.documentId The document to check.
+   * @param {DocumentPermission} params.permission The base permission to compare against.
+   * @param {string} params.skipMembershipId The membership to skip when comparing the existing permissions.
+   * @returns {boolean} Whether the user has a higher access level
+   */
+  public async hasHigherDocumentPermission({
+    documentId,
+    permission,
+    skipMembershipId,
+  }: {
+    documentId: string;
+    permission: DocumentPermission;
+    skipMembershipId?: string;
+  }) {
+    const existingPermission = await this.getDocumentPermission(
+      documentId,
+      skipMembershipId
+    );
+
+    if (!existingPermission) {
+      return false;
+    }
+
+    return (
+      DocumentPermissionPriority[existingPermission] >=
+      DocumentPermissionPriority[permission]
+    );
+  }
+
+  /**
+   * Returns the user's highest access level to a document.
+   *
+   *
+   * @param {string} documentId The document to check.
+   * @param {string} skipMembershipId The membership to skip when comparing the existing permissions.
+   * @returns {DocumentPermission | undefined} Highest access level, if it exists.
+   */
+  public async getDocumentPermission(
+    documentId: string,
+    skipMembershipId?: string
+  ): Promise<DocumentPermission | undefined> {
+    const userMembershipWhere: WhereOptions<UserMembership> = {
+      userId: this.id,
+      documentId,
+    };
+    const groupMembershipWhere: WhereOptions<GroupMembership> = {
+      documentId,
+    };
+
+    if (skipMembershipId) {
+      userMembershipWhere.id = { [Op.ne]: skipMembershipId };
+      groupMembershipWhere.id = { [Op.ne]: skipMembershipId };
+    }
+
+    const [userMemberships, groupMemberships] = await Promise.all([
+      UserMembership.findAll({
+        where: userMembershipWhere,
+      }),
+      GroupMembership.findAll({
+        where: groupMembershipWhere,
+        include: [
+          {
+            model: Group.filterByMember(this.id),
+            as: "group",
+          },
+        ],
+      }),
+    ]);
+
+    const permissions = orderBy(
+      [
+        ...userMemberships.map((m) => m.permission as DocumentPermission),
+        ...groupMemberships.map((m) => m.permission as DocumentPermission),
+      ],
+      (permission) => DocumentPermissionPriority[permission],
+      "desc"
+    );
+
+    return permissions[0];
+  }
 
   // hooks
 

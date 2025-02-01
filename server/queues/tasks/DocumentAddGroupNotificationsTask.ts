@@ -1,12 +1,31 @@
 import { Op } from "sequelize";
+import { DocumentPermission } from "@shared/types";
 import Logger from "@server/logging/Logger";
-import { GroupUser, UserMembership } from "@server/models";
-import { DocumentGroupEvent } from "@server/types";
+import { GroupUser } from "@server/models";
+import { DocumentGroupEvent, DocumentUserEvent } from "@server/types";
 import BaseTask, { TaskPriority } from "./BaseTask";
 import DocumentAddUserNotificationsTask from "./DocumentAddUserNotificationsTask";
 
 export default class DocumentAddGroupNotificationsTask extends BaseTask<DocumentGroupEvent> {
   public async perform(event: DocumentGroupEvent) {
+    const permission = event.changes?.attributes.permission as
+      | DocumentPermission
+      | undefined;
+
+    if (!permission) {
+      Logger.debug(
+        "task",
+        `Suppressing notification for group ${event.modelId} as permission not available`,
+        event.data
+      );
+    }
+
+    const addUserTaskData: DocumentUserEvent["data"] = {
+      title: "",
+      isNew: event.data.isNew,
+      permission,
+    };
+
     await GroupUser.findAllInBatches<GroupUser>(
       {
         where: {
@@ -20,27 +39,11 @@ export default class DocumentAddGroupNotificationsTask extends BaseTask<Document
       async (groupUsers) => {
         await Promise.all(
           groupUsers.map(async (groupUser) => {
-            const userMembership = await UserMembership.findOne({
-              where: {
-                userId: groupUser.userId,
-                documentId: event.documentId,
-              },
-            });
-            if (userMembership) {
-              Logger.debug(
-                "task",
-                `Suppressing notification for user ${groupUser.userId} as they are already a member of the document`,
-                {
-                  documentId: event.documentId,
-                  userId: groupUser.userId,
-                }
-              );
-              return;
-            }
-
             await DocumentAddUserNotificationsTask.schedule({
               ...event,
+              modelId: event.data.membershipId,
               userId: groupUser.userId,
+              data: addUserTaskData,
             });
           })
         );

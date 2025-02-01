@@ -1,6 +1,14 @@
 import { faker } from "@faker-js/faker";
-import { CollectionPermission } from "@shared/types";
-import { buildUser, buildTeam, buildCollection } from "@server/test/factories";
+import { CollectionPermission, DocumentPermission } from "@shared/types";
+import {
+  buildUser,
+  buildTeam,
+  buildCollection,
+  buildGroup,
+  buildGroupUser,
+  buildDocument,
+} from "@server/test/factories";
+import GroupMembership from "./GroupMembership";
 import UserMembership from "./UserMembership";
 
 beforeAll(() => {
@@ -122,6 +130,188 @@ describe("user model", () => {
       const response = await user.collectionIds();
       expect(response.length).toEqual(1);
       expect(response[0]).toEqual(collection.id);
+    });
+  });
+
+  describe("hasHigherDocumentPermission", () => {
+    it("should return true when user has higher access level", async () => {
+      const user = await buildUser();
+      const document = await buildDocument({ teamId: user.teamId });
+      const group = await buildGroup();
+      await Promise.all([
+        await buildGroupUser({
+          groupId: group.id,
+          userId: user.id,
+          teamId: user.teamId,
+        }),
+        await UserMembership.create({
+          createdById: user.id,
+          documentId: document.id,
+          userId: user.id,
+          permission: DocumentPermission.Read,
+        }),
+        await GroupMembership.create({
+          createdById: user.id,
+          documentId: document.id,
+          groupId: group.id,
+          permission: DocumentPermission.ReadWrite,
+        }),
+      ]);
+
+      const hasHigherPermission = await user.hasHigherDocumentPermission({
+        documentId: document.id,
+        permission: DocumentPermission.Read,
+      });
+
+      expect(hasHigherPermission).toBe(true);
+    });
+
+    it("should return true when user has the same access level", async () => {
+      const user = await buildUser();
+      const document = await buildDocument({ teamId: user.teamId });
+      const group = await buildGroup();
+      await Promise.all([
+        await buildGroupUser({
+          groupId: group.id,
+          userId: user.id,
+          teamId: user.teamId,
+        }),
+        await UserMembership.create({
+          createdById: user.id,
+          documentId: document.id,
+          userId: user.id,
+          permission: DocumentPermission.Read,
+        }),
+        await GroupMembership.create({
+          createdById: user.id,
+          documentId: document.id,
+          groupId: group.id,
+          permission: DocumentPermission.ReadWrite,
+        }),
+      ]);
+
+      const hasHigherPermission = await user.hasHigherDocumentPermission({
+        documentId: document.id,
+        permission: DocumentPermission.ReadWrite,
+      });
+
+      expect(hasHigherPermission).toBe(true);
+    });
+
+    it("should return false when user has lower access level", async () => {
+      const user = await buildUser();
+      const document = await buildDocument({ teamId: user.teamId });
+      const group = await buildGroup();
+      await Promise.all([
+        await buildGroupUser({
+          groupId: group.id,
+          userId: user.id,
+          teamId: user.teamId,
+        }),
+        await UserMembership.create({
+          createdById: user.id,
+          documentId: document.id,
+          userId: user.id,
+          permission: DocumentPermission.Read,
+        }),
+        await GroupMembership.create({
+          createdById: user.id,
+          documentId: document.id,
+          groupId: group.id,
+          permission: DocumentPermission.ReadWrite,
+        }),
+      ]);
+
+      const hasHigherPermission = await user.hasHigherDocumentPermission({
+        documentId: document.id,
+        permission: DocumentPermission.Admin,
+      });
+
+      expect(hasHigherPermission).toBe(false);
+    });
+
+    it("should return false when user does not have access", async () => {
+      const user = await buildUser();
+      const document = await buildDocument({ teamId: user.teamId });
+
+      const hasHigherPermission = await user.hasHigherDocumentPermission({
+        documentId: document.id,
+        permission: DocumentPermission.Admin,
+      });
+
+      expect(hasHigherPermission).toBe(false);
+    });
+  });
+
+  describe("getDocumentPermission", () => {
+    it("should return the highest provided permission", async () => {
+      const user = await buildUser();
+      const document = await buildDocument({ teamId: user.teamId });
+      const group = await buildGroup();
+      await Promise.all([
+        await buildGroupUser({
+          groupId: group.id,
+          userId: user.id,
+          teamId: user.teamId,
+        }),
+        await UserMembership.create({
+          createdById: user.id,
+          documentId: document.id,
+          userId: user.id,
+          permission: DocumentPermission.Read,
+        }),
+        await GroupMembership.create({
+          createdById: user.id,
+          documentId: document.id,
+          groupId: group.id,
+          permission: DocumentPermission.ReadWrite,
+        }),
+      ]);
+
+      const permission = await user.getDocumentPermission(document.id);
+
+      expect(permission).toEqual(DocumentPermission.ReadWrite);
+    });
+
+    it("should return the highest provided permission with skipped membership", async () => {
+      const user = await buildUser();
+      const document = await buildDocument({ teamId: user.teamId });
+      const group = await buildGroup();
+      const [, , groupMembership] = await Promise.all([
+        await buildGroupUser({
+          groupId: group.id,
+          userId: user.id,
+          teamId: user.teamId,
+        }),
+        await UserMembership.create({
+          createdById: user.id,
+          documentId: document.id,
+          userId: user.id,
+          permission: DocumentPermission.Read,
+        }),
+        await GroupMembership.create({
+          createdById: user.id,
+          documentId: document.id,
+          groupId: group.id,
+          permission: DocumentPermission.ReadWrite,
+        }),
+      ]);
+
+      const permission = await user.getDocumentPermission(
+        document.id,
+        groupMembership.id
+      );
+
+      expect(permission).toEqual(DocumentPermission.Read);
+    });
+
+    it("should return undefined when user does not have access", async () => {
+      const user = await buildUser();
+      const document = await buildDocument({ teamId: user.teamId });
+
+      const permission = await user.getDocumentPermission(document.id);
+
+      expect(permission).toBeUndefined();
     });
   });
 });
