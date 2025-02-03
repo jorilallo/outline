@@ -127,7 +127,7 @@
     "http-errors": "2.0.0",
     "i18next": "^22.5.1",
     "i18next-fs-backend": "^2.6.0",
-    "i18next-http-backend": "^2.7.1",
+    "i18next-http-backend": "^2.7.3",
     "invariant": "^2.2.4",
     "ioredis": "^5.4.1",
     "is-printable-key-event": "^1.0.0",
