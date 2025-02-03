@@ -4658,10 +4658,10 @@
     "@types/qs" "*"
     "@types/range-parser" "*"
 
-"@types/express-useragent@^1.0.2":
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/@types/express-useragent/-/express-useragent-1.0.2.tgz#c129f2aae983fb7b646dbcd254973936f745c12f"
-  integrity "sha1-wSnyqumD+3tkbbzSVJc5NvdFwS8= sha512-eUVCqMsmEO7adMJSxuAARPUxbEJLYQJATiB86bx3MGeyUOTgKNnLTfAMaF+z84DftcH6NBbFFwiRomIcsFVdUQ=="
+"@types/express-useragent@^1.0.5":
+  version "1.0.5"
+  resolved "https://registry.yarnpkg.com/@types/express-useragent/-/express-useragent-1.0.5.tgz#d4c210fdab8050459c087f36666dcc513fa5834b"
+  integrity sha512-G1zPW6jDj7oGJvMvB8UCIAWznCOafcksYzOg8LINfYmvrXlSGJ6nsJ7O7GlmYMjrgGYvobYaI8IhRCkAKslPJA==
   dependencies:
     "@types/express" "*"
 

@@ -265,7 +265,7 @@
     "@types/dotenv": "^8.2.3",
     "@types/emoji-regex": "^9.2.0",
     "@types/escape-html": "^1.0.4",
-    "@types/express-useragent": "^1.0.2",
+    "@types/express-useragent": "^1.0.5",
     "@types/formidable": "^2.0.6",
     "@types/fs-extra": "^11.0.4",
     "@types/fuzzy-search": "^2.1.5",
