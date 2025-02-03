@@ -72,8 +72,7 @@ function AuthenticatedRoutes() {
             <Redirect exact from="/templates" to={settingsPath("templates")} />
             <Redirect exact from="/collections/*" to="/collection/*" />
             <Route exact path="/collection/:id/new" component={DocumentNew} />
-            <Route exact path="/collection/:id/:tab" component={Collection} />
-            <Route exact path="/collection/:id" component={Collection} />
+            <Route exact path="/collection/:id/:tab?" component={Collection} />
             <Route exact path="/doc/new" component={DocumentNew} />
             <Route exact path={`/d/${slug}`} component={RedirectDocument} />
             <Route

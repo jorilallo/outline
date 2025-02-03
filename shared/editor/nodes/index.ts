@@ -107,6 +107,7 @@ export const richExtensions: Nodes = [
   TemplatePlaceholder,
   Math,
   MathBlock,
+  Mention,
   // Container type nodes should be last so that key handlers are registered for content inside
   // the container nodes first.
   ...listExtensions,
@@ -116,4 +117,4 @@ export const richExtensions: Nodes = [
 /**
  * Add commenting and mentions to a set of nodes
  */
-export const withComments = (nodes: Nodes) => [...nodes, Mention, Comment];
+export const withComments = (nodes: Nodes) => [...nodes, Comment];

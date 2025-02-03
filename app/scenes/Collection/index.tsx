@@ -3,12 +3,12 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import {
   useParams,
-  Redirect,
   Switch,
   Route,
   useHistory,
   useRouteMatch,
   useLocation,
+  Redirect,
 } from "react-router-dom";
 import styled from "styled-components";
 import breakpoint from "styled-components-breakpoint";
@@ -30,13 +30,13 @@ import PaginatedDocumentList from "~/components/PaginatedDocumentList";
 import PinnedDocuments from "~/components/PinnedDocuments";
 import PlaceholderText from "~/components/PlaceholderText";
 import Scene from "~/components/Scene";
-import Subheading from "~/components/Subheading";
 import Tab from "~/components/Tab";
 import Tabs from "~/components/Tabs";
 import { editCollection } from "~/actions/definitions/collections";
 import useCommandBarActions from "~/hooks/useCommandBarActions";
 import { useLastVisitedPath } from "~/hooks/useLastVisitedPath";
 import { useLocationSidebarContext } from "~/hooks/useLocationSidebarContext";
+import usePersistedState from "~/hooks/usePersistedState";
 import { usePinnedDocuments } from "~/hooks/usePinnedDocuments";
 import usePolicy from "~/hooks/usePolicy";
 import useStores from "~/hooks/useStores";
@@ -50,7 +50,7 @@ import ShareButton from "./components/ShareButton";
 
 const IconPicker = React.lazy(() => import("~/components/IconPicker"));
 
-function CollectionScene() {
+const CollectionScene = observer(function _CollectionScene() {
   const params = useParams<{ id?: string }>();
   const history = useHistory();
   const match = useRouteMatch();
@@ -68,11 +68,17 @@ function CollectionScene() {
     collections.getByUrl(id) || collections.get(id);
   const can = usePolicy(collection);
   const { pins, count } = usePinnedDocuments(id, collection?.id);
+  const [collectionTab, setCollectionTab] = usePersistedState<string>(
+    `collection-tab:${collection?.id}`,
+    collection?.hasDescription ? "overview" : "recent",
+    {
+      listen: false,
+    }
+  );
 
   const handleIconChange = React.useCallback(
-    async (icon: string | null, color: string | null) => {
-      await collection?.save({ icon, color });
-    },
+    (icon: string | null, color: string | null) =>
+      collection?.save({ icon, color }),
     [collection]
   );
 
@@ -122,6 +128,8 @@ function CollectionScene() {
     return <Search notFound />;
   }
 
+  const hasOverview = can.update || collection?.hasDescription;
+
   const fallbackIcon = collection ? (
     <Icon
       value={collection.icon ?? "collection"}
@@ -130,11 +138,17 @@ function CollectionScene() {
     />
   ) : null;
 
+  const tabProps = (path: string) => ({
+    exact: true,
+    onClick: () => setCollectionTab(path),
+    to: {
+      pathname: collectionPath(collection!.path, path),
+      state: { sidebarContext },
+    },
+  });
+
   return collection ? (
     <Scene
-      // Forced mount prevents animation of pinned documents when navigating
-      // _between_ collections, speeds up perceived performance.
-      key={collection.id}
       centered={false}
       textTitle={collection.name}
       left={
@@ -198,135 +212,117 @@ function CollectionScene() {
             canUpdate={can.update}
             placeholderCount={count}
           />
-          <CollectionDescription collection={collection} />
 
           <Documents>
-            {!collection.isArchived && (
-              <Tabs>
-                <Tab
+            <Tabs>
+              {hasOverview && (
+                <Tab {...tabProps("overview")}>{t("Overview")}</Tab>
+              )}
+              <Tab {...tabProps("recent")}>{t("Documents")}</Tab>
+              {!collection.isArchived && (
+                <>
+                  <Tab {...tabProps("updated")}>{t("Recently updated")}</Tab>
+                  <Tab {...tabProps("published")}>
+                    {t("Recently published")}
+                  </Tab>
+                  <Tab {...tabProps("old")}>{t("Least recently updated")}</Tab>
+                  <Tab {...tabProps("alphabetical")}>{t("A–Z")}</Tab>
+                </>
+              )}
+            </Tabs>
+            <Switch>
+              <Route path={collectionPath(collection.path)} exact>
+                <Redirect
                   to={{
-                    pathname: collectionPath(collection.path),
+                    pathname: collectionPath(collection!.path, collectionTab),
                     state: { sidebarContext },
                   }}
-                  exact
-                >
-                  {t("Documents")}
-                </Tab>
-                <Tab
-                  to={{
-                    pathname: collectionPath(collection.path, "updated"),
-                    state: { sidebarContext },
-                  }}
-                  exact
-                >
-                  {t("Recently updated")}
-                </Tab>
-                <Tab
-                  to={{
-                    pathname: collectionPath(collection.path, "published"),
-                    state: { sidebarContext },
-                  }}
-                  exact
-                >
-                  {t("Recently published")}
-                </Tab>
-                <Tab
-                  to={{
-                    pathname: collectionPath(collection.path, "old"),
-                    state: { sidebarContext },
-                  }}
-                  exact
-                >
-                  {t("Least recently updated")}
-                </Tab>
-                <Tab
-                  to={{
-                    pathname: collectionPath(collection.path, "alphabetical"),
-                    state: { sidebarContext },
-                  }}
-                  exact
-                >
-                  {t("A–Z")}
-                </Tab>
-              </Tabs>
-            )}
-            {collection.isEmpty ? (
-              <Empty collection={collection} />
-            ) : !collection.isArchived ? (
-              <Switch>
-                <Route path={collectionPath(collection.path, "alphabetical")}>
-                  <PaginatedDocumentList
-                    key="alphabetical"
-                    documents={documents.alphabeticalInCollection(
-                      collection.id
-                    )}
-                    fetch={documents.fetchAlphabetical}
-                    options={{
-                      collectionId: collection.id,
+                />
+              </Route>
+              <Route path={collectionPath(collection.path, "overview")}>
+                {hasOverview ? (
+                  <CollectionDescription collection={collection} />
+                ) : (
+                  <Redirect
+                    to={{
+                      pathname: collectionPath(collection.path, "recent"),
+                      state: { sidebarContext },
                     }}
                   />
-                </Route>
-                <Route path={collectionPath(collection.path, "old")}>
-                  <PaginatedDocumentList
-                    key="old"
-                    documents={documents.leastRecentlyUpdatedInCollection(
-                      collection.id
-                    )}
-                    fetch={documents.fetchLeastRecentlyUpdated}
-                    options={{
-                      collectionId: collection.id,
-                    }}
-                  />
-                </Route>
-                <Route path={collectionPath(collection.path, "recent")}>
-                  <Redirect to={collectionPath(collection.path, "published")} />
-                </Route>
-                <Route path={collectionPath(collection.path, "published")}>
-                  <PaginatedDocumentList
-                    key="published"
-                    documents={documents.recentlyPublishedInCollection(
-                      collection.id
-                    )}
-                    fetch={documents.fetchRecentlyPublished}
-                    options={{
-                      collectionId: collection.id,
-                    }}
-                    showPublished
-                  />
-                </Route>
-                <Route path={collectionPath(collection.path, "updated")}>
-                  <PaginatedDocumentList
-                    key="updated"
-                    documents={documents.recentlyUpdatedInCollection(
-                      collection.id
-                    )}
-                    fetch={documents.fetchRecentlyUpdated}
-                    options={{
-                      collectionId: collection.id,
-                    }}
-                  />
-                </Route>
-                <Route path={collectionPath(collection.path)} exact>
-                  <PaginatedDocumentList
-                    documents={documents.rootInCollection(collection.id)}
-                    fetch={documents.fetchPage}
-                    options={{
-                      collectionId: collection.id,
-                      parentDocumentId: null,
-                      sort: collection.sort.field,
-                      direction: collection.sort.direction,
-                    }}
-                    showParentDocuments
-                  />
-                </Route>
-              </Switch>
-            ) : (
-              <Switch>
+                )}
+              </Route>
+              {collection.isEmpty ? (
+                <Empty collection={collection} />
+              ) : !collection.isArchived ? (
+                <>
+                  <Route path={collectionPath(collection.path, "alphabetical")}>
+                    <PaginatedDocumentList
+                      key="alphabetical"
+                      documents={documents.alphabeticalInCollection(
+                        collection.id
+                      )}
+                      fetch={documents.fetchAlphabetical}
+                      options={{
+                        collectionId: collection.id,
+                      }}
+                    />
+                  </Route>
+                  <Route path={collectionPath(collection.path, "old")}>
+                    <PaginatedDocumentList
+                      key="old"
+                      documents={documents.leastRecentlyUpdatedInCollection(
+                        collection.id
+                      )}
+                      fetch={documents.fetchLeastRecentlyUpdated}
+                      options={{
+                        collectionId: collection.id,
+                      }}
+                    />
+                  </Route>
+                  <Route path={collectionPath(collection.path, "published")}>
+                    <PaginatedDocumentList
+                      key="published"
+                      documents={documents.recentlyPublishedInCollection(
+                        collection.id
+                      )}
+                      fetch={documents.fetchRecentlyPublished}
+                      options={{
+                        collectionId: collection.id,
+                      }}
+                      showPublished
+                    />
+                  </Route>
+                  <Route path={collectionPath(collection.path, "updated")}>
+                    <PaginatedDocumentList
+                      key="updated"
+                      documents={documents.recentlyUpdatedInCollection(
+                        collection.id
+                      )}
+                      fetch={documents.fetchRecentlyUpdated}
+                      options={{
+                        collectionId: collection.id,
+                      }}
+                    />
+                  </Route>
+                  <Route path={collectionPath(collection.path, "recent")} exact>
+                    <PaginatedDocumentList
+                      documents={documents.rootInCollection(collection.id)}
+                      fetch={documents.fetchPage}
+                      options={{
+                        collectionId: collection.id,
+                        parentDocumentId: null,
+                        sort: collection.sort.field,
+                        direction: collection.sort.direction,
+                      }}
+                      showParentDocuments
+                    />
+                  </Route>
+                </>
+              ) : (
                 <Route path={collectionPath(collection.path)} exact>
                   <PaginatedDocumentList
                     documents={documents.archivedInCollection(collection.id)}
                     fetch={documents.fetchPage}
-                    heading={<Subheading sticky>{t("Documents")}</Subheading>}
                     options={{
                       collectionId: collection.id,
                       parentDocumentId: null,
@@ -337,8 +333,8 @@ function CollectionScene() {
                     showParentDocuments
                   />
                 </Route>
-              </Switch>
-            )}
+              )}
+            </Switch>
           </Documents>
         </CenteredContent>
       </DropToImport>
@@ -351,7 +347,15 @@ function CollectionScene() {
       <PlaceholderList count={5} />
     </CenteredContent>
   );
-}
+});
+
+const KeyedCollection = () => {
+  const params = useParams<{ id?: string }>();
+
+  // Forced mount prevents animation of pinned documents when navigating
+  // _between_ collections, speeds up perceived performance.
+  return <CollectionScene key={params.id} />;
+};
 
 const Documents = styled.div`
   position: relative;
@@ -369,4 +373,4 @@ const CollectionHeading = styled(Heading)`
   `}
 `;
 
-export default observer(CollectionScene);
+export default KeyedCollection;

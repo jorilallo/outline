@@ -157,6 +157,9 @@ function MentionMenu({ search, isActive, ...rest }: Props) {
       if (item.attrs.type === MentionType.Document) {
         return;
       }
+      if (!documentId) {
+        return;
+      }
       // Check if the mentioned user has access to the document
       const res = await client.post("/documents.users", {
         id: documentId,
