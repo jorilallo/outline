@@ -243,7 +243,7 @@
     "validator": "13.12.0",
     "vite": "^5.4.12",
     "vite-plugin-pwa": "^0.20.3",
-    "winston": "^3.13.0",
+    "winston": "^3.17.0",
     "ws": "^7.5.10",
     "y-indexeddb": "^9.0.11",
     "y-prosemirror": "^1.2.12",
