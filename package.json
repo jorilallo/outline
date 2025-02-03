@@ -354,7 +354,7 @@
     "react-refresh": "^0.14.2",
     "rimraf": "^2.5.4",
     "rollup-plugin-webpack-stats": "^2.0.1",
-    "terser": "^5.36.0",
+    "terser": "^5.37.0",
     "typescript": "^5.7.2",
     "vite-plugin-static-copy": "^0.17.0",
     "yarn-deduplicate": "^6.0.2"
